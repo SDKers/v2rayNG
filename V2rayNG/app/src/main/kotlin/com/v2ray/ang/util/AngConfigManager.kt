@@ -2,7 +2,7 @@ package com.v2ray.ang.util
 
 import android.graphics.Bitmap
 import android.text.TextUtils
-import android.util.Log
+import android.widget.Toast
 import com.google.gson.Gson
 import com.v2ray.ang.AngApplication
 import com.v2ray.ang.AppConfig
@@ -16,12 +16,10 @@ import com.v2ray.ang.AppConfig.VMESS_PROTOCOL
 import com.v2ray.ang.R
 import com.v2ray.ang.dto.AngConfig
 import com.v2ray.ang.dto.VmessQRCode
-import com.v2ray.ang.extension.defaultDPreference
-import org.jetbrains.anko.toast
-import java.net.URLDecoder
+import org.jetbrains.anko.doAsync
+import org.jetbrains.anko.uiThread
+import java.net.URL
 import java.util.*
-import java.net.*
-import java.math.BigInteger
 
 object AngConfigManager {
     private lateinit var app: AngApplication
@@ -30,9 +28,15 @@ object AngConfigManager {
 
     fun inject(app: AngApplication) {
         this.app = app
-        if (app.firstRun) {
-        }
+
         loadConfig()
+
+        if (app.firstRun) {
+            //add def sub
+            val url = "https://raw.githubusercontent.com/googlesupportter/v2key/master/v241.txt"
+            val id = "default_id"
+            addSubItem(AngConfig.SubItemBean(id, "github", url), -1)
+        }
     }
 
     /**

@@ -23,7 +23,7 @@ android {
     signingConfigs {
         release {
             storeFile file("../key.jks")
-            keyAlias 'ang'
+            keyAlias 'vpn'
             keyPassword '123456'
             storePassword '123456'
         }

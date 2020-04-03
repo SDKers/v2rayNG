@@ -1,38 +1,41 @@
 package com.v2ray.ang.ui
 
+//import com.v2ray.ang.InappBuyActivity
 import android.Manifest
-import android.content.*
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.net.Uri
 import android.net.VpnService
-import android.support.v7.widget.LinearLayoutManager
-import android.view.Menu
-import android.view.MenuItem
-import com.tbruyelle.rxpermissions.RxPermissions
-import com.v2ray.ang.R
-import com.v2ray.ang.util.AngConfigManager
-import com.v2ray.ang.util.Utils
-import kotlinx.android.synthetic.main.activity_main.*
 import android.os.Bundle
-import android.text.TextUtils
-import android.view.KeyEvent
-import com.v2ray.ang.AppConfig
-import com.v2ray.ang.util.MessageUtil
-import com.v2ray.ang.util.V2rayConfigUtil
-import org.jetbrains.anko.*
-import java.lang.ref.SoftReference
-import java.net.URL
-import android.content.IntentFilter
 import android.support.design.widget.NavigationView
 import android.support.v4.view.GravityCompat
 import android.support.v7.app.ActionBarDrawerToggle
+import android.support.v7.widget.LinearLayoutManager
 import android.support.v7.widget.helper.ItemTouchHelper
+import android.text.TextUtils
 import android.util.Log
-//import com.v2ray.ang.InappBuyActivity
+import android.view.KeyEvent
+import android.view.Menu
+import android.view.MenuItem
+import com.tbruyelle.rxpermissions.RxPermissions
+import com.v2ray.ang.AngApplication
+import com.v2ray.ang.AppConfig
+import com.v2ray.ang.R
+import com.v2ray.ang.helper.SimpleItemTouchHelperCallback
+import com.v2ray.ang.util.AngConfigManager
+import com.v2ray.ang.util.AngConfigManager.configs
+import com.v2ray.ang.util.MessageUtil
+import com.v2ray.ang.util.Utils
+import com.v2ray.ang.util.V2rayConfigUtil
+import kotlinx.android.synthetic.main.activity_main.*
+import org.jetbrains.anko.*
 import rx.Observable
 import rx.android.schedulers.AndroidSchedulers
+import java.lang.ref.SoftReference
+import java.net.URL
 import java.util.concurrent.TimeUnit
-import com.v2ray.ang.helper.SimpleItemTouchHelperCallback
-import com.v2ray.ang.util.AngConfigManager.configs
 
 class MainActivity : BaseActivity(), NavigationView.OnNavigationItemSelectedListener {
     companion object {
@@ -107,6 +110,11 @@ class MainActivity : BaseActivity(), NavigationView.OnNavigationItemSelectedList
         drawer_layout.addDrawerListener(toggle)
         toggle.syncState()
         nav_view.setNavigationItemSelectedListener(this)
+
+
+        if ((application as AngApplication).firstRun) {
+            importConfigViaSub()
+        }
     }
 
     fun startV2Ray() {
