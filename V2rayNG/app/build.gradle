@@ -16,8 +16,8 @@ android {
         minSdkVersion 17
         targetSdkVersion Integer.parseInt("$targetSdkVer")
         multiDexEnabled true
-        versionCode 212
-        versionName "1.0.2"
+        versionCode 215
+        versionName "1.2.5"
     }
 
     signingConfigs {
@@ -29,7 +29,7 @@ android {
         }
         debug {
             storeFile file("../key.jks")
-            keyAlias 'ang'
+            keyAlias 'vpn'
             keyPassword '123456'
             storePassword '123456'
         }

@@ -29,6 +29,7 @@
                 android:title="@string/title_pref_promotion" />
             <item
                 android:id="@+id/donate"
+                android:visible="false"
                 android:icon="@drawable/ic_attach_money_white_24dp"
                 android:title="@string/title_pref_donate" />
             <item
