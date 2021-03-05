@@ -1,6 +1,7 @@
 package com.v2ray.ang.ui
 
 import android.os.Bundle
+import android.support.v7.app.AlertDialog
 import android.text.Editable
 import android.text.TextUtils
 import android.view.Menu
@@ -10,12 +11,11 @@ import com.v2ray.ang.AppConfig
 import com.v2ray.ang.R
 import com.v2ray.ang.extension.defaultDPreference
 import com.v2ray.ang.dto.AngConfig
+import com.v2ray.ang.extension.toast
 import com.v2ray.ang.util.AngConfigManager
 import com.v2ray.ang.util.Utils
 import kotlinx.android.synthetic.main.activity_server2.*
-import org.jetbrains.anko.*
 import java.lang.Exception
-
 
 class Server2Activity : BaseActivity() {
     companion object {
@@ -69,40 +69,32 @@ class Server2Activity : BaseActivity() {
      * save server config
      */
     fun saveServer(): Boolean {
-        var saveSuccess: Boolean
         val vmess = configs.vmess[edit_index]
 
         vmess.remarks = et_remarks.text.toString()
 
         if (TextUtils.isEmpty(vmess.remarks)) {
             toast(R.string.server_lab_remarks)
-            saveSuccess = false
+            return false
         }
-
-
-        if (AngConfigManager.addCustomServer(vmess, edit_index) == 0) {
-            toast(R.string.toast_success)
-            saveSuccess = true
-        } else {
-            toast(R.string.toast_failure)
-            saveSuccess = false
-        }
-
 
         try {
             Gson().fromJson<Object>(tv_content.text.toString(), Object::class.java)
         } catch (e: Exception) {
             e.printStackTrace()
             toast(R.string.toast_malformed_josn)
-            saveSuccess = false
+            return false
         }
 
-        if (saveSuccess) {
+        if (AngConfigManager.addCustomServer(vmess, edit_index) == 0) {
             //update config
             defaultDPreference.setPrefString(AppConfig.ANG_CONFIG + edit_guid, tv_content.text.toString())
+            AngConfigManager.genStoreV2rayConfigIfActive(edit_index)
+            toast(R.string.toast_success)
             finish()
             return true
         } else {
+            toast(R.string.toast_failure)
             return false
         }
     }
@@ -112,17 +104,16 @@ class Server2Activity : BaseActivity() {
      */
     fun deleteServer(): Boolean {
         if (edit_index >= 0) {
-            alert(R.string.del_config_comfirm) {
-                positiveButton(android.R.string.ok) {
-                    if (AngConfigManager.removeServer(edit_index) == 0) {
-                        toast(R.string.toast_success)
-                        finish()
-                    } else {
-                        toast(R.string.toast_failure)
+            AlertDialog.Builder(this).setMessage(R.string.del_config_comfirm)
+                    .setPositiveButton(android.R.string.ok) { _, _ ->
+                        if (AngConfigManager.removeServer(edit_index) == 0) {
+                            toast(R.string.toast_success)
+                            finish()
+                        } else {
+                            toast(R.string.toast_failure)
+                        }
                     }
-                }
-                show()
-            }
+                    .show()
         } else {
         }
         return true

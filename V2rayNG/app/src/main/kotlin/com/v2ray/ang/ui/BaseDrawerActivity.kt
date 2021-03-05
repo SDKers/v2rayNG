@@ -13,11 +13,7 @@ import android.support.v7.widget.Toolbar
 import android.util.Log
 import android.view.MenuItem
 import android.view.View
-//import com.v2ray.ang.InappBuyActivity
-
 import com.v2ray.ang.R
-import org.jetbrains.anko.startActivity
-
 
 abstract class BaseDrawerActivity : BaseActivity() {
     companion object {
@@ -55,11 +51,10 @@ abstract class BaseDrawerActivity : BaseActivity() {
                         this@BaseDrawerActivity, R.anim.fade_in, R.anim.fade_out).toBundle()
                 var activityClass: Class<*>? = null
                 when (mItemToOpenWhenDrawerCloses) {
-                    R.id.server_profile -> activityClass = MainActivity::class.java
                     R.id.sub_setting -> activityClass = SubSettingActivity::class.java
                     R.id.settings -> activityClass = SettingsActivity::class.java
                     R.id.logcat -> {
-                        startActivity<LogcatActivity>()
+                        startActivity(Intent(this@BaseDrawerActivity, LogcatActivity::class.java))
                         return
                     }
                     R.id.donate -> {
@@ -195,9 +190,7 @@ abstract class BaseDrawerActivity : BaseActivity() {
             true
         }
 
-        if (MainActivity::class.java.isAssignableFrom(javaClass)) {
-            navigationView.setCheckedItem(R.id.server_profile)
-        } else if (SubSettingActivity::class.java.isAssignableFrom(javaClass)) {
+        if (SubSettingActivity::class.java.isAssignableFrom(javaClass)) {
             navigationView.setCheckedItem(R.id.sub_setting)
         } else if (SettingsActivity::class.java.isAssignableFrom(javaClass)) {
             navigationView.setCheckedItem(R.id.settings)

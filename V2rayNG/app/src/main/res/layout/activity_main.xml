@@ -48,14 +48,17 @@
                         android:id="@+id/recycler_view"
                         android:layout_width="match_parent"
                         android:layout_height="0dp"
-                        android:layout_weight="1" />
+                        android:layout_weight="1"
+                        android:nextFocusRight="@+id/fab" />
 
                     <LinearLayout
                         android:id="@+id/layout_test"
                         android:layout_width="match_parent"
                         android:layout_height="@dimen/connection_test_height"
-                        android:background="@color/colorPrimary_text"
-                        android:gravity="center|left">
+                        android:background="@drawable/background_test_button"
+                        android:gravity="center|left"
+                        android:clickable="true"
+                        android:focusable="true">
 
                         <TextView
                             android:id="@+id/tv_test_state"
@@ -92,7 +95,10 @@
                         android:layout_marginLeft="16dp"
                         android:layout_marginTop="16dp"
                         android:src="@drawable/ic_v_idle"
-                        app:layout_anchorGravity="bottom|right|end" />
+                        android:clickable="true"
+                        android:focusable="true"
+                        app:layout_anchorGravity="bottom|right|end"
+                        android:nextFocusLeft="@+id/recycler_view" />
 
                 </com.github.jorgecastilloprz.FABProgressCircle>
             </android.support.design.widget.CoordinatorLayout>
@@ -107,7 +113,23 @@
         app:headerLayout="@layout/nav_header"
         app:itemIconTint="@color/colorPrimary_dark"
         app:itemTextColor="@color/colorPrimary"
-        app:menu="@menu/menu_drawer" />
+        app:menu="@menu/menu_drawer" >
+
+        <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
+                android:background="@color/white"
+                android:padding="14dp">
+
+            <TextView
+                    android:id="@+id/version"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:textColor="@color/accent" />
+        </LinearLayout>
+    </android.support.design.widget.NavigationView>
 
 </android.support.v4.widget.DrawerLayout>
 

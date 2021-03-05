@@ -1,16 +1,16 @@
 package com.v2ray.ang.ui
 
 import android.os.Bundle
+import android.support.v7.app.AlertDialog
 import android.text.TextUtils
 import android.view.Menu
 import android.view.MenuItem
 import com.v2ray.ang.R
 import com.v2ray.ang.dto.AngConfig
+import com.v2ray.ang.extension.toast
 import com.v2ray.ang.util.AngConfigManager
 import com.v2ray.ang.util.Utils
 import kotlinx.android.synthetic.main.activity_server4.*
-import org.jetbrains.anko.*
-
 
 class Server4Activity : BaseActivity() {
     companion object {
@@ -96,6 +96,7 @@ class Server4Activity : BaseActivity() {
         }
 
         if (AngConfigManager.addSocksServer(vmess, edit_index) == 0) {
+            AngConfigManager.genStoreV2rayConfigIfActive(edit_index)
             toast(R.string.toast_success)
             finish()
             return true
@@ -110,17 +111,16 @@ class Server4Activity : BaseActivity() {
      */
     fun deleteServer(): Boolean {
         if (edit_index >= 0) {
-            alert(R.string.del_config_comfirm) {
-                positiveButton(android.R.string.ok) {
-                    if (AngConfigManager.removeServer(edit_index) == 0) {
-                        toast(R.string.toast_success)
-                        finish()
-                    } else {
-                        toast(R.string.toast_failure)
+            AlertDialog.Builder(this).setMessage(R.string.del_config_comfirm)
+                    .setPositiveButton(android.R.string.ok) { _, _ ->
+                        if (AngConfigManager.removeServer(edit_index) == 0) {
+                            toast(R.string.toast_success)
+                            finish()
+                        } else {
+                            toast(R.string.toast_failure)
+                        }
                     }
-                }
-                show()
-            }
+                    .show()
         } else {
         }
         return true

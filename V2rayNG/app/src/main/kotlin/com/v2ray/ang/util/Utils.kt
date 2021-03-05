@@ -11,42 +11,32 @@ import com.google.zxing.qrcode.QRCodeWriter
 import com.google.zxing.EncodeHintType
 import java.util.*
 import kotlin.collections.HashMap
-import android.app.ActivityManager
 import android.content.ClipData
 import android.content.Intent
-import android.content.res.AssetManager
 import android.net.Uri
 import android.os.SystemClock
 import android.text.TextUtils
-import android.text.method.ScrollingMovementMethod
 import android.util.Log
 import android.util.Patterns
-import android.view.View
 import android.webkit.URLUtil
 import com.v2ray.ang.AngApplication
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.R
+import com.v2ray.ang.extension.defaultDPreference
 import com.v2ray.ang.extension.responseLength
+import com.v2ray.ang.extension.toast
 import com.v2ray.ang.extension.v2RayApplication
-import com.v2ray.ang.service.V2RayVpnService
+import com.v2ray.ang.service.V2RayServiceManager
 import com.v2ray.ang.ui.SettingsActivity
-import kotlinx.android.synthetic.main.activity_logcat.*
+import kotlinx.coroutines.isActive
 import me.dozen.dpreference.DPreference
-import org.jetbrains.anko.toast
-import org.jetbrains.anko.uiThread
-import java.io.BufferedReader
-import java.io.File
 import java.io.IOException
-import java.io.InputStreamReader
 import java.net.*
-import java.util.regex.Matcher
-import java.util.regex.Pattern
-import java.math.BigInteger
-import java.util.concurrent.TimeUnit
-import libv2ray.Libv2ray
-
+import kotlin.coroutines.coroutineContext
 
 object Utils {
+
+    val tcpTestingSockets = ArrayList<Socket?>()
 
     /**
      * convert string to editalbe for kotlin
@@ -102,7 +92,7 @@ object Utils {
         try {
             val cmb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             val clipData = ClipData.newPlainText(null, content)
-            cmb.primaryClip = clipData
+            cmb.setPrimaryClip(clipData)
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -280,59 +270,14 @@ object Utils {
         return false
     }
 
-
-    /**
-     * 判断服务是否后台运行
-
-     * @param context
-     * *            Context
-     * *
-     * @param className
-     * *            判断的服务名字
-     * *
-     * @return true 在运行 false 不在运行
-     */
-    fun isServiceRun(context: Context, className: String): Boolean {
-        var isRun = false
-        val activityManager = context
-                .getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-        val serviceList = activityManager
-                .getRunningServices(999)
-        val size = serviceList.size
-        for (i in 0..size - 1) {
-            if (serviceList[i].service.className == className) {
-                isRun = true
-                break
-            }
-        }
-        return isRun
-    }
-
-    /**
-     * startVService
-     */
-    fun startVService(context: Context): Boolean {
-        if (context.v2RayApplication.defaultDPreference.getPrefBoolean(SettingsActivity.PREF_PROXY_SHARING, false)) {
-            context.toast(R.string.toast_warning_pref_proxysharing_short)
-        }else{
-            context.toast(R.string.toast_services_start)
-        }
-        if (AngConfigManager.genStoreV2rayConfig(-1)) {
-            val configContent = AngConfigManager.currGeneratedV2rayConfig()
-            val configType = AngConfigManager.currConfigType()
-            if (configType == AppConfig.EConfigType.Custom) {
-                try {
-                    Libv2ray.testConfig(configContent)
-                } catch (e: Exception) {
-                    context.toast(e.toString())
-                    return false
-                }
-            }
-            V2RayVpnService.startV2Ray(context)
-            return true
-        } else {
+    fun startVServiceFromToggle(context: Context): Boolean {
+        val result = context.defaultDPreference.getPrefString(AppConfig.PREF_CURR_CONFIG, "")
+        if (result.isBlank()) {
+            context.toast(R.string.app_tile_first_use)
             return false
         }
+        V2RayServiceManager.startV2Ray(context)
+        return true
     }
 
     /**
@@ -348,8 +293,11 @@ object Utils {
      * startVService
      */
     fun startVService(context: Context, index: Int): Boolean {
-        AngConfigManager.setActiveServer(index)
-        return startVService(context)
+        if (AngConfigManager.setActiveServer(index) < 0) {
+            return false
+        }
+        V2RayServiceManager.startV2Ray(context)
+        return true
     }
 
     /**
@@ -448,7 +396,6 @@ object Utils {
         return path
     }
 
-
     /**
      * readTextFromAssets
      */
@@ -483,10 +430,13 @@ object Utils {
     /**
      * tcping
      */
-    fun tcping(url: String, port: Int): String {
+    suspend fun tcping(url: String, port: Int): String {
         var time = -1L
         for (k in 0 until 2) {
             val one = socketConnectTime(url, port)
+            if (!coroutineContext.isActive) {
+                break
+            }
             if (one != -1L  )
                 if(time == -1L || one < time) {
                 time = one
@@ -497,19 +447,35 @@ object Utils {
 
     fun socketConnectTime(url: String, port: Int): Long {
         try {
+            val socket = Socket()
+            synchronized(this) {
+                tcpTestingSockets.add(socket)
+            }
             val start = System.currentTimeMillis()
-            val socket = Socket(url, port)
+            socket.connect(InetSocketAddress(url, port))
             val time = System.currentTimeMillis() - start
+            synchronized(this) {
+                tcpTestingSockets.remove(socket)
+            }
             socket.close()
             return time
         } catch (e: UnknownHostException) {
             e.printStackTrace()
         } catch (e: IOException) {
-            e.printStackTrace()
+            Log.d(AppConfig.ANG_PACKAGE, "socketConnectTime IOException: $e")
         } catch (e: Exception) {
             e.printStackTrace()
         }
         return -1
+    }
+
+    fun closeAllTcpSockets() {
+        synchronized(this) {
+            tcpTestingSockets.forEach {
+                it?.close()
+            }
+            tcpTestingSockets.clear()
+        }
     }
 }
 

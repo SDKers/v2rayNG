@@ -15,10 +15,13 @@ import com.v2ray.ang.AppConfig.SS_PROTOCOL
 import com.v2ray.ang.AppConfig.VMESS_PROTOCOL
 import com.v2ray.ang.R
 import com.v2ray.ang.dto.AngConfig
+import com.v2ray.ang.dto.EConfigType
 import com.v2ray.ang.dto.VmessQRCode
 import org.jetbrains.anko.doAsync
 import org.jetbrains.anko.uiThread
 import java.net.URL
+import java.net.URI
+import java.net.URLDecoder
 import java.util.*
 
 object AngConfigManager {
@@ -73,7 +76,7 @@ object AngConfigManager {
     fun addServer(vmess: AngConfig.VmessBean, index: Int): Int {
         try {
             vmess.configVersion = 2
-            vmess.configType = AppConfig.EConfigType.Vmess
+            vmess.configType = EConfigType.VMESS.value
 
             if (index >= 0) {
                 //edit
@@ -108,16 +111,7 @@ object AngConfigManager {
             angConfig.vmess.removeAt(index)
 
             //移除的是活动的
-            if (angConfig.index == index) {
-                if (angConfig.vmess.count() > 0) {
-                    angConfig.index = 0
-                } else {
-                    angConfig.index = -1
-                }
-            } else if (index < angConfig.index)//移除活动之前的
-            {
-                angConfig.index--
-            }
+            adjustIndexForRemovalAt(index)
 
             storeConfigFile()
         } catch (e: Exception) {
@@ -125,6 +119,19 @@ object AngConfigManager {
             return -1
         }
         return 0
+    }
+
+    private fun adjustIndexForRemovalAt(index: Int) {
+        if (angConfig.index == index) {
+            if (angConfig.vmess.count() > 0) {
+                angConfig.index = 0
+            } else {
+                angConfig.index = -1
+            }
+        } else if (index < angConfig.index)//移除活动之前的
+        {
+            angConfig.index--
+        }
     }
 
     fun swapServer(fromPosition: Int, toPosition: Int): Int {
@@ -137,7 +144,7 @@ object AngConfigManager {
             } else if (index == toPosition) {
                 angConfig.index = fromPosition
             }
-            storeConfigFile()
+            //storeConfigFile()
         } catch (e: Exception) {
             e.printStackTrace()
             return -1
@@ -157,6 +164,10 @@ object AngConfigManager {
             angConfig.index = index
             app.curIndex = index
             storeConfigFile()
+            if (!genStoreV2rayConfig()) {
+                Log.d(AppConfig.ANG_PACKAGE, "set active index $index but generate full configuration failed!")
+                return -1
+            }
         } catch (e: Exception) {
             e.printStackTrace()
             app.curIndex = -1
@@ -177,49 +188,46 @@ object AngConfigManager {
         }
     }
 
+    fun genStoreV2rayConfigIfActive(index: Int) {
+        if (index == configs.index) {
+            if (!genStoreV2rayConfig()) {
+                Log.d(AppConfig.ANG_PACKAGE, "update config $index but generate full configuration failed!")
+            }
+        }
+    }
+
     /**
      * gen and store v2ray config file
      */
-    fun genStoreV2rayConfig(index: Int): Boolean {
+    fun genStoreV2rayConfig(): Boolean {
         try {
-            if (angConfig.index < 0
-                    || angConfig.vmess.count() <= 0
-                    || angConfig.index > angConfig.vmess.count() - 1
-            ) {
-                return false
-            }
-            var index2 = angConfig.index
-            if (index >= 0) {
-                index2 = index
-            }
-
-            val result = V2rayConfigUtil.getV2rayConfig(app, angConfig.vmess[index2])
-            if (result.status) {
-                app.defaultDPreference.setPrefString(PREF_CURR_CONFIG, result.content)
-                app.defaultDPreference.setPrefString(PREF_CURR_CONFIG_GUID, currConfigGuid())
-                app.defaultDPreference.setPrefString(PREF_CURR_CONFIG_NAME, currConfigName())
-                return true
-            } else {
-                return false
+            angConfig.vmess.getOrNull(angConfig.index)?.let {
+                val result = V2rayConfigUtil.getV2rayConfig(app, it)
+                if (result.status) {
+                    app.defaultDPreference.setPrefString(PREF_CURR_CONFIG, result.content)
+                    app.defaultDPreference.setPrefString(PREF_CURR_CONFIG_GUID, currConfigGuid())
+                    app.defaultDPreference.setPrefString(PREF_CURR_CONFIG_NAME, currConfigName())
+                    return true
+                }
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            return false
         }
+        return false
     }
 
     fun currGeneratedV2rayConfig(): String {
         return app.defaultDPreference.getPrefString(AppConfig.PREF_CURR_CONFIG, "")
     }
 
-    fun currConfigType(): Int {
+    fun currConfigType(): EConfigType? {
         if (angConfig.index < 0
                 || angConfig.vmess.count() <= 0
                 || angConfig.index > angConfig.vmess.count() - 1
         ) {
-            return -1
+            return null
         }
-        return angConfig.vmess[angConfig.index].configType
+        return EConfigType.fromInt(angConfig.vmess[angConfig.index].configType)
     }
 
     fun currConfigName(): String {
@@ -245,7 +253,7 @@ object AngConfigManager {
     /**
      * import config form qrcode or...
      */
-    fun importConfig(server: String?, subid: String): Int {
+    fun importConfig(server: String?, subid: String, removedSelectedServer: AngConfig.VmessBean?): Int {
         try {
             if (server == null || TextUtils.isEmpty(server)) {
                 return R.string.toast_none_data
@@ -256,7 +264,11 @@ object AngConfigManager {
             if (server.startsWith(VMESS_PROTOCOL)) {
 
                 val indexSplit = server.indexOf("?")
-                if (indexSplit > 0) {
+                val newVmess = tryParseNewVmess(server)
+                if (newVmess != null) {
+                    vmess = newVmess
+                    vmess.subid = subid
+                } else if (indexSplit > 0) {
                     vmess = ResolveVmess4Kitsunebi(server)
                 } else {
 
@@ -275,7 +287,7 @@ object AngConfigManager {
                         return R.string.toast_incorrect_protocol
                     }
 
-                    vmess.configType = AppConfig.EConfigType.Vmess
+                    vmess.configType = EConfigType.VMESS.value
                     vmess.security = "auto"
                     vmess.network = "tcp"
                     vmess.headerType = "none"
@@ -317,7 +329,7 @@ object AngConfigManager {
                     result = Utils.decode(result)
                 }
 
-                val legacyPattern = "^(.+?):(.*)@(.+?):(\\d+?)$".toRegex()
+                val legacyPattern = "^(.+?):(.*)@(.+?):(\\d+?)/?$".toRegex()
                 val match = legacyPattern.matchEntire(result)
                 if (match == null) {
                     return R.string.toast_incorrect_protocol
@@ -365,11 +377,72 @@ object AngConfigManager {
             } else {
                 return R.string.toast_incorrect_protocol
             }
+            if (removedSelectedServer != null &&
+                    vmess.subid.equals(removedSelectedServer.subid) &&
+                    vmess.address.equals(removedSelectedServer.address) &&
+                    vmess.port.equals(removedSelectedServer.port)) {
+                setActiveServer(configs.vmess.count() - 1)
+            }
         } catch (e: Exception) {
             e.printStackTrace()
             return -1
         }
         return 0
+    }
+
+    fun tryParseNewVmess(uri: String): AngConfig.VmessBean? {
+        return runCatching {
+            val uri = URI(uri)
+            check(uri.scheme == "vmess")
+            val (_, protocol, tlsStr, uuid, alterId) =
+                    Regex("(tcp|http|ws|kcp|quic)(\\+tls)?:([0-9a-z]{8}-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{12})-([0-9]+)")
+                            .matchEntire(uri.userInfo)?.groupValues
+                            ?: error("parse user info fail.")
+            val tls = tlsStr.isNotBlank()
+            val queryParam = uri.rawQuery.split("&")
+                    .map { it.split("=").let { (k, v) -> k to URLDecoder.decode(v, "utf-8")!! } }
+                    .toMap()
+            val vmess = AngConfig.VmessBean()
+            vmess.address = uri.host
+            vmess.port = uri.port
+            vmess.id = uuid
+            vmess.alterId = alterId.toInt()
+            vmess.streamSecurity = if (tls) "tls" else ""
+            vmess.remarks = uri.fragment
+            vmess.security = "auto"
+
+            // TODO: allowInsecure not supported
+
+            when (protocol) {
+                "tcp" -> {
+                    vmess.network = "tcp"
+                    vmess.headerType = queryParam["type"] ?: "none"
+                    vmess.requestHost = queryParam["host"] ?: ""
+                }
+                "http" -> {
+                    vmess.network = "h2"
+                    vmess.path = queryParam["path"]?.takeIf { it.trim() != "/" } ?: ""
+                    vmess.requestHost = queryParam["host"]?.split("|")?.get(0) ?: ""
+                }
+                "ws" -> {
+                    vmess.network = "ws"
+                    vmess.path = queryParam["path"]?.takeIf { it.trim() != "/" } ?: ""
+                    vmess.requestHost = queryParam["host"]?.split("|")?.get(0) ?: ""
+                }
+                "kcp" -> {
+                    vmess.network = "kcp"
+                    vmess.headerType = queryParam["type"] ?: "none"
+                    vmess.path = queryParam["seed"] ?: ""
+                }
+                "quic" -> {
+                    vmess.network = "quic"
+                    vmess.requestHost = queryParam["security"] ?: "none"
+                    vmess.headerType = queryParam["type"] ?: "none"
+                    vmess.path = queryParam["key"] ?: ""
+                }
+            }
+            vmess
+        }.getOrNull()
     }
 
     private fun ResolveVmess4Kitsunebi(server: String): AngConfig.VmessBean {
@@ -417,7 +490,7 @@ object AngConfigManager {
             }
 
             val vmess = angConfig.vmess[index]
-            if (angConfig.vmess[index].configType == AppConfig.EConfigType.Vmess) {
+            if (angConfig.vmess[index].configType == EConfigType.VMESS.value) {
 
                 val vmessQRCode = VmessQRCode()
                 vmessQRCode.v = vmess.configVersion.toString()
@@ -435,7 +508,7 @@ object AngConfigManager {
                 val conf = VMESS_PROTOCOL + Utils.encode(json)
 
                 return conf
-            } else if (angConfig.vmess[index].configType == AppConfig.EConfigType.Shadowsocks) {
+            } else if (angConfig.vmess[index].configType == EConfigType.SHADOWSOCKS.value) {
                 val remark = "#" + Utils.urlEncode(vmess.remarks)
                 val url = String.format("%s:%s@%s:%s",
                         vmess.security,
@@ -443,7 +516,7 @@ object AngConfigManager {
                         vmess.address,
                         vmess.port)
                 return SS_PROTOCOL + Utils.encode(url) + remark
-            } else if (angConfig.vmess[index].configType == AppConfig.EConfigType.Socks) {
+            } else if (angConfig.vmess[index].configType == EConfigType.SOCKS.value) {
                 val remark = "#" + Utils.urlEncode(vmess.remarks)
                 val url = String.format("%s:%s",
                         vmess.address,
@@ -524,9 +597,9 @@ object AngConfigManager {
      */
     fun shareFullContent2Clipboard(index: Int): Int {
         try {
-            if (AngConfigManager.genStoreV2rayConfig(index)) {
-                val configContent = app.defaultDPreference.getPrefString(AppConfig.PREF_CURR_CONFIG, "")
-                Utils.setClipboard(app.applicationContext, configContent)
+            val result = V2rayConfigUtil.getV2rayConfig(app, angConfig.vmess[index])
+            if (result.status) {
+                Utils.setClipboard(app.applicationContext, result.content)
             } else {
                 return -1
             }
@@ -552,7 +625,7 @@ object AngConfigManager {
             //add
             val vmess = AngConfig.VmessBean()
             vmess.configVersion = 2
-            vmess.configType = AppConfig.EConfigType.Custom
+            vmess.configType = EConfigType.CUSTOM.value
             vmess.guid = guid
             vmess.remarks = vmess.guid
 
@@ -655,7 +728,7 @@ object AngConfigManager {
     fun addCustomServer(vmess: AngConfig.VmessBean, index: Int): Int {
         try {
             vmess.configVersion = 2
-            vmess.configType = AppConfig.EConfigType.Custom
+            vmess.configType = EConfigType.CUSTOM.value
 
             if (index >= 0) {
                 //edit
@@ -680,7 +753,7 @@ object AngConfigManager {
     fun addShadowsocksServer(vmess: AngConfig.VmessBean, index: Int): Int {
         try {
             vmess.configVersion = 2
-            vmess.configType = AppConfig.EConfigType.Shadowsocks
+            vmess.configType = EConfigType.SHADOWSOCKS.value
 
             if (index >= 0) {
                 //edit
@@ -705,7 +778,7 @@ object AngConfigManager {
     fun addSocksServer(vmess: AngConfig.VmessBean, index: Int): Int {
         try {
             vmess.configVersion = 2
-            vmess.configType = AppConfig.EConfigType.Socks
+            vmess.configType = EConfigType.SOCKS.value
 
             if (index >= 0) {
                 //edit
@@ -732,6 +805,17 @@ object AngConfigManager {
             if (servers == null) {
                 return 0
             }
+            val removedSelectedServer =
+                    if (!TextUtils.isEmpty(subid)) {
+                        configs.vmess.getOrNull(configs.index)?.let {
+                            if (it.subid == subid) {
+                                return@let it
+                            }
+                            return@let null
+                        }
+                    } else {
+                        null
+                    }
             removeServerViaSubid(subid)
 
 //            var servers = server
@@ -742,7 +826,7 @@ object AngConfigManager {
             var count = 0
             servers.lines()
                     .forEach {
-                        val resId = importConfig(it, subid)
+                        val resId = importConfig(it, subid, removedSelectedServer)
                         if (resId == 0) {
                             count++
                         }
@@ -782,6 +866,7 @@ object AngConfigManager {
         for (k in configs.vmess.count() - 1 downTo 0) {
             if (configs.vmess[k].subid.equals(subid)) {
                 angConfig.vmess.removeAt(k)
+                adjustIndexForRemovalAt(k)
             }
         }
 

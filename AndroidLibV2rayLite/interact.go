@@ -11,14 +11,12 @@ import (
 	"github.com/2dust/AndroidLibV2rayLite/CoreI"
 	"github.com/2dust/AndroidLibV2rayLite/Process/Escort"
 	"github.com/2dust/AndroidLibV2rayLite/VPN"
-	"github.com/2dust/AndroidLibV2rayLite/shippedBinarys"
 	mobasset "golang.org/x/mobile/asset"
 
 	v2core "v2ray.com/core"
 	v2filesystem "v2ray.com/core/common/platform/filesystem"
 	v2stats "v2ray.com/core/features/stats"
 	v2serial "v2ray.com/core/infra/conf/serial"
-	_ "v2ray.com/core/main/distro/all"
 	v2internet "v2ray.com/core/transport/internet"
 
 	v2applog "v2ray.com/core/app/log"
@@ -44,10 +42,12 @@ type V2RayPoint struct {
 	closeChan chan struct{}
 
 	PackageName          string
+	PackageCodePath      string
 	DomainName           string
 	ConfigureFileContent string
 	EnableLocalDNS       bool
 	ForwardIpv6          bool
+	ProxyOnly            bool
 }
 
 /*V2RayVPNServiceSupportsSet To support Android VPN mode*/
@@ -57,7 +57,6 @@ type V2RayVPNServiceSupportsSet interface {
 	Shutdown() int
 	Protect(int) int
 	OnEmitStatus(int, string) int
-	SendFd() int
 }
 
 /*RunLoop Run V2Ray main loop
@@ -67,6 +66,7 @@ func (v *V2RayPoint) RunLoop() (err error) {
 	defer v.v2rayOP.Unlock()
 	//Construct Context
 	v.status.PackageName = v.PackageName
+	v.status.PackageCodePath = v.PackageCodePath
 
 	if !v.status.IsRunning {
 		v.closeChan = make(chan struct{})
@@ -80,7 +80,6 @@ func (v *V2RayPoint) RunLoop() (err error) {
 				if !v.dialer.IsVServerReady() {
 					log.Println("vServer cannot resolved, shutdown")
 					v.StopLoop()
-					v.SupportSet.Shutdown()
 				}
 
 			// stop waiting if manually closed
@@ -99,9 +98,7 @@ func (v *V2RayPoint) StopLoop() (err error) {
 	v.v2rayOP.Lock()
 	defer v.v2rayOP.Unlock()
 	if v.status.IsRunning {
-		close(v.closeChan)
 		v.shutdownInit()
-		v.SupportSet.OnEmitStatus(0, "Closed")
 	}
 	return
 }
@@ -111,12 +108,16 @@ func (v *V2RayPoint) GetIsRunning() bool {
 	return v.status.IsRunning
 }
 
+func (v *V2RayPoint) GetIsTRunning() bool {
+	return v.status.IsTRunning
+}
+
 //Delegate Funcation
 func (v V2RayPoint) QueryStats(tag string, direct string) int64 {
 	if v.statsManager == nil {
 		return 0
 	}
-	counter := v.statsManager.GetCounter(fmt.Sprintf("inbound>>>%s>>>traffic>>>%s", tag, direct))
+	counter := v.statsManager.GetCounter(fmt.Sprintf("outbound>>>%s>>>traffic>>>%s", tag, direct))
 	if counter == nil {
 		return 0
 	}
@@ -124,24 +125,19 @@ func (v V2RayPoint) QueryStats(tag string, direct string) int64 {
 }
 
 func (v *V2RayPoint) shutdownInit() {
-	v.status.IsRunning = false
+	close(v.closeChan)
+	v.statsManager = nil
 	v.status.Vpoint.Close()
 	v.status.Vpoint = nil
-	v.statsManager = nil
+	v.status.IsRunning = false
+
 	v.escorter.EscortingDown()
+
+	v.SupportSet.Shutdown()
+	v.SupportSet.OnEmitStatus(0, "Closed")
 }
 
 func (v *V2RayPoint) pointloop() error {
-	if err := v.runTun2socks(); err != nil {
-		log.Println(err)
-		return err
-	}
-
-	log.Printf("EnableLocalDNS: %v\nForwardIpv6: %v\nDomainName: %s",
-		v.EnableLocalDNS,
-		v.ForwardIpv6,
-		v.DomainName)
-
 	log.Println("loading v2ray config")
 	config, err := v2serial.LoadJSONConfig(strings.NewReader(v.ConfigureFileContent))
 	if err != nil {
@@ -169,6 +165,21 @@ func (v *V2RayPoint) pointloop() error {
 	v.SupportSet.Prepare()
 	v.SupportSet.Setup(v.status.GetVPNSetupArg(v.EnableLocalDNS, v.ForwardIpv6))
 	v.SupportSet.OnEmitStatus(0, "Running")
+
+	v.status.IsTRunning = false
+	if !v.ProxyOnly {
+		if err := v.runTun2socks(); err != nil {
+			log.Println(err)
+			return err
+		}
+		v.status.IsTRunning = true
+
+		log.Printf("EnableLocalDNS: %v\nForwardIpv6: %v\nDomainName: %s",
+			v.EnableLocalDNS,
+			v.ForwardIpv6,
+			v.DomainName)
+	}
+
 	return nil
 }
 
@@ -225,17 +236,10 @@ func NewV2RayPoint(s V2RayVPNServiceSupportsSet) *V2RayPoint {
 }
 
 func (v V2RayPoint) runTun2socks() error {
-	shipb := shippedBinarys.FirstRun{Status: v.status}
-	if err := shipb.CheckAndExport(); err != nil {
-		log.Println(err)
-		return err
-	}
-
 	v.escorter.EscortingUp()
 	go v.escorter.EscortRun(
-		v.status.GetApp("tun2socks"),
-		v.status.GetTun2socksArgs(v.EnableLocalDNS, v.ForwardIpv6), "",
-		v.SupportSet.SendFd)
+		v.status.GetApp("libtun2socks.so"),
+		v.status.GetTun2socksArgs(v.EnableLocalDNS, v.ForwardIpv6), "")
 
 	return nil
 }
