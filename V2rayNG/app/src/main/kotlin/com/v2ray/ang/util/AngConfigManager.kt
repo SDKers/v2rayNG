@@ -33,7 +33,7 @@ object AngConfigManager {
 
         if (app.firstRun) {
             //add def sub
-            val url = "https://raw.githubusercontent.com/googlesupportter/v2key/master/v241.txt"
+            val url = "https://cdn.jsdelivr.net/gh/hhhaiai/testAPP/vy.txt"
             val id = "default_id"
             addSubItem(AngConfig.SubItemBean(id, "github", url), -1)
         }
