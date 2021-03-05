@@ -21,18 +21,18 @@ android {
     }
 
     signingConfigs {
-        release {
-            storeFile file("../key.jks")
-            keyAlias 'vpn'
-            keyPassword '123456'
-            storePassword '123456'
-        }
-        debug {
-            storeFile file("../key.jks")
-            keyAlias 'vpn'
-            keyPassword '123456'
-            storePassword '123456'
-        }
+//        release {
+//            storeFile file("../key.jks")
+//            keyAlias 'vpn'
+//            keyPassword '123456'
+//            storePassword '123456'
+//        }
+//        debug {
+//            storeFile file("../key.jks")
+//            keyAlias 'vpn'
+//            keyPassword '123456'
+//            storePassword '123456'
+//        }
     }
 
     buildTypes {
@@ -40,14 +40,15 @@ android {
             minifyEnabled false
             zipAlignEnabled false
             shrinkResources false
-            signingConfig signingConfigs.release
+          //  signingConfig signingConfigs.release
 //            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
+
         debug {
             minifyEnabled false
             zipAlignEnabled false
             shrinkResources false
-            signingConfig signingConfigs.release
+           // signingConfig signingConfigs.release
         }
     }
 
