@@ -2,6 +2,7 @@ package com.v2ray.ang.util
 
 import android.graphics.Bitmap
 import android.text.TextUtils
+import android.util.Log
 import android.widget.Toast
 import com.google.gson.Gson
 import com.v2ray.ang.AngApplication
@@ -17,8 +18,7 @@ import com.v2ray.ang.R
 import com.v2ray.ang.dto.AngConfig
 import com.v2ray.ang.dto.EConfigType
 import com.v2ray.ang.dto.VmessQRCode
-import org.jetbrains.anko.doAsync
-import org.jetbrains.anko.uiThread
+
 import java.net.URL
 import java.net.URI
 import java.net.URLDecoder

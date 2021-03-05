@@ -1,11 +1,6 @@
 package com.v2ray.ang.ui
 
-//import com.v2ray.ang.InappBuyActivity
 import android.Manifest
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
 import android.arch.lifecycle.ViewModelProviders
 import android.content.Intent
 import android.net.Uri
@@ -22,14 +17,12 @@ import android.view.KeyEvent
 import android.view.Menu
 import android.view.MenuItem
 import com.tbruyelle.rxpermissions.RxPermissions
-import com.v2ray.ang.AppConfig
-import com.v2ray.ang.BuildConfig
 import com.v2ray.ang.AngApplication
 import com.v2ray.ang.AppConfig
+import com.v2ray.ang.BuildConfig
 import com.v2ray.ang.R
 import com.v2ray.ang.extension.defaultDPreference
 import com.v2ray.ang.extension.toast
-import com.v2ray.ang.helper.SimpleItemTouchHelperCallback
 import com.v2ray.ang.helper.SimpleItemTouchHelperCallback
 import com.v2ray.ang.util.AngConfigManager
 import com.v2ray.ang.util.Utils
@@ -42,16 +35,6 @@ import kotlinx.coroutines.launch
 import libv2ray.Libv2ray
 import rx.Observable
 import rx.android.schedulers.AndroidSchedulers
-import java.net.URL
-import com.v2ray.ang.util.AngConfigManager.configs
-import com.v2ray.ang.util.MessageUtil
-import com.v2ray.ang.util.Utils
-import com.v2ray.ang.util.V2rayConfigUtil
-import kotlinx.android.synthetic.main.activity_main.*
-import org.jetbrains.anko.*
-import rx.Observable
-import rx.android.schedulers.AndroidSchedulers
-import java.lang.ref.SoftReference
 import java.net.URL
 import java.util.concurrent.TimeUnit
 
