@@ -3,7 +3,6 @@ package com.v2ray.ang.util
 import android.graphics.Bitmap
 import android.text.TextUtils
 import android.util.Log
-import android.widget.Toast
 import com.google.gson.Gson
 import com.v2ray.ang.AngApplication
 import com.v2ray.ang.AppConfig
@@ -18,8 +17,6 @@ import com.v2ray.ang.R
 import com.v2ray.ang.dto.AngConfig
 import com.v2ray.ang.dto.EConfigType
 import com.v2ray.ang.dto.VmessQRCode
-
-import java.net.URL
 import java.net.URI
 import java.net.URLDecoder
 import java.util.*
@@ -36,9 +33,9 @@ object AngConfigManager {
 
         if (app.firstRun) {
             //add def sub
-            val url = "https://cdn.jsdelivr.net/gh/hhhaiai/testAPP/vy.txt"
-            val id = "default_id"
-            addSubItem(AngConfig.SubItemBean(id, "github", url), -1)
+            val url = "https://cdn.jsdelivr.net/gh/W1wbGU/xxx/vy.txt"
+            val id = "default_id_2"
+            addSubItem(AngConfig.SubItemBean(id, "W1wbGU", url), -1)
         }
     }
 
